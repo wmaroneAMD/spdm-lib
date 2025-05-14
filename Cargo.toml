@@ -3,13 +3,14 @@
 [package]
 name = "spdm-lib"
 version = "0.1.0"
-authors = "Caliptra Contributors"
+authors = ["Caliptra Contributors", "OpenPRoT Contributors"]
 edition = "2021"
 
 [dependencies]
 async-trait = "0.1.87"
 bitfield = "0.14.0"
 zerocopy = { version = "0.8.17", features = ["derive"] }
+spdmlib-support = { path = "../spdmlib-support" }
 
 [dev-dependencies]
 rand = "0.8.5"

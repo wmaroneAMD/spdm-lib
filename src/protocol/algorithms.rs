@@ -2,7 +2,7 @@
 
 use crate::error::{SpdmError, SpdmResult};
 use bitfield::bitfield;
-use libapi_caliptra::crypto::hash::HashAlgoType;
+use support::hash::HashAlgoType;
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 pub const SHA384_HASH_SIZE: usize = 48;
