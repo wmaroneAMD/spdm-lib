@@ -12,7 +12,7 @@ use crate::protocol::{
 };
 use crate::state::ConnectionState;
 use core::mem::size_of;
-use libapi_caliptra::crypto::hash::{HashAlgoType, HashContext};
+use spdmlib_support::hash::{HashAlgoType, HashContext};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 #[derive(IntoBytes, FromBytes, Immutable, Default)]
@@ -60,7 +60,7 @@ async fn encode_cert_chain_digest<'a>(
     hash_ctx
         .init(HashAlgoType::SHA384, Some(header_bytes))
         .await
-        .map_err(|e| (false, CommandError::CaliptraApi(e)))?;
+        .map_err(|e| (false, CommandError::Api(e)))?;
 
     // Root certificate hash
     let mut root_hash = [0u8; SHA384_HASH_SIZE];
@@ -72,7 +72,7 @@ async fn encode_cert_chain_digest<'a>(
     hash_ctx
         .update(&root_hash)
         .await
-        .map_err(|e| (false, CommandError::CaliptraApi(e)))?;
+        .map_err(|e| (false, CommandError::Api(e)))?;
 
     // Hash the certificate chain
     let mut cert_portion = [0u8; SPDM_MAX_CERT_CHAIN_PORTION_LEN as usize];
@@ -87,7 +87,7 @@ async fn encode_cert_chain_digest<'a>(
         hash_ctx
             .update(&cert_portion[..bytes_read])
             .await
-            .map_err(|e| (false, CommandError::CaliptraApi(e)))?;
+            .map_err(|e| (false, CommandError::Api(e)))?;
 
         offset += bytes_read;
 
@@ -106,7 +106,7 @@ async fn encode_cert_chain_digest<'a>(
     hash_ctx
         .finalize(cert_chain_digest_buf)
         .await
-        .map_err(|e| (false, CommandError::CaliptraApi(e)))?;
+        .map_err(|e| (false, CommandError::Api(e)))?;
     rsp.pull_data(SHA384_HASH_SIZE)
         .map_err(|_| (false, CommandError::BufferTooSmall))?;
 

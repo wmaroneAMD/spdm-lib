@@ -6,7 +6,7 @@ use crate::codec::{Codec, CodecError, CommonCodec, DataKind};
 use alloc::boxed::Box;
 use async_trait::async_trait;
 use bitfield::bitfield;
-use libsyscall_caliptra::mctp::{Mctp, MessageInfo};
+use spdmlib_support::mctp::{Mctp, MessageInfo};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 pub type TransportResult<T> = Result<T, TransportError>;

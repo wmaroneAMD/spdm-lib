@@ -6,6 +6,8 @@ use crate::codec::CodecError;
 use crate::commands::error_rsp::ErrorCode;
 use crate::transport::TransportError;
 
+use spdmlib_support::error::*;
+
 #[derive(Debug)]
 pub enum SpdmError {
     UnsupportedVersion,
@@ -16,6 +18,7 @@ pub enum SpdmError {
     BufferTooSmall,
     UnsupportedRequest,
     CertStore(CertStoreError),
+    Error(ApiError),
 }
 
 pub type SpdmResult<T> = Result<T, SpdmError>;
@@ -29,4 +32,5 @@ pub enum CommandError {
     ErrorCode(ErrorCode),
     UnsupportedRequest,
     CertStore(CertStoreError),
+    Api(ApiError),
 }
