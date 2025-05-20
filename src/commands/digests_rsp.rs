@@ -4,6 +4,8 @@ use crate::cert_store::{cert_slot_mask, SpdmCertStore};
 use crate::codec::{Codec, CommonCodec, DataKind, MessageBuf};
 use crate::commands::error_rsp::ErrorCode;
 use crate::context::SpdmContext;
+use crate::crypto::hash::SpdmHash as Hash;
+use crate::crypto::crypto::SpdmCrypto as Crypto;
 use crate::error::{CommandError, CommandResult};
 use crate::protocol::common::SpdmMsgHdr;
 use crate::protocol::{
@@ -12,7 +14,7 @@ use crate::protocol::{
 };
 use crate::state::ConnectionState;
 use core::mem::size_of;
-use spdmlib_support::hash::{HashAlgoType, HashContext};
+use spdmlib_support::hash::{HashAlgoType, HashContext, HashError};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 #[derive(IntoBytes, FromBytes, Immutable, Default)]
@@ -42,6 +44,7 @@ async fn encode_cert_chain_digest<'a>(
     cert_store: &mut dyn SpdmCertStore,
     asym_algo: AsymAlgo,
     rsp: &mut MessageBuf<'a>,
+    hash_ctx: &mut impl HashContext,
 ) -> CommandResult<usize> {
     let crt_chain_len = cert_store
         .cert_chain_len(asym_algo, slot_id)
@@ -56,11 +59,10 @@ async fn encode_cert_chain_digest<'a>(
 
     // Length and reserved fields
     let header_bytes = header.as_bytes();
-    let mut hash_ctx = HashContext::new();
     hash_ctx
         .init(HashAlgoType::SHA384, Some(header_bytes))
         .await
-        .map_err(|e| (false, CommandError::Api(e)))?;
+        .map_err(|e| (false, CommandError::Hash(e)))?;
 
     // Root certificate hash
     let mut root_hash = [0u8; SHA384_HASH_SIZE];
@@ -72,7 +74,7 @@ async fn encode_cert_chain_digest<'a>(
     hash_ctx
         .update(&root_hash)
         .await
-        .map_err(|e| (false, CommandError::Api(e)))?;
+        .map_err(|e| (false, CommandError::Hash(e)))?;
 
     // Hash the certificate chain
     let mut cert_portion = [0u8; SPDM_MAX_CERT_CHAIN_PORTION_LEN as usize];
@@ -87,7 +89,7 @@ async fn encode_cert_chain_digest<'a>(
         hash_ctx
             .update(&cert_portion[..bytes_read])
             .await
-            .map_err(|e| (false, CommandError::Api(e)))?;
+            .map_err(|e| (false, CommandError::Hash(e)))?;
 
         offset += bytes_read;
 
@@ -106,7 +108,7 @@ async fn encode_cert_chain_digest<'a>(
     hash_ctx
         .finalize(cert_chain_digest_buf)
         .await
-        .map_err(|e| (false, CommandError::Api(e)))?;
+        .map_err(|e| (false, CommandError::Hash(e)))?;
     rsp.pull_data(SHA384_HASH_SIZE)
         .map_err(|_| (false, CommandError::BufferTooSmall))?;
 
@@ -114,9 +116,10 @@ async fn encode_cert_chain_digest<'a>(
 }
 
 async fn fill_digests_response<'a>(
-    ctx: &mut SpdmContext<'a>,
+    ctx: &mut SpdmContext<'a, dyn Crypto, dyn Hash>
     connection_version: SpdmVersion,
     rsp: &mut MessageBuf<'a>,
+    hash_ctx: &mut impl HashContext,
 ) -> CommandResult<()> {
     // Ensure the selected hash algorithm is SHA384 and retrieve the asymmetric algorithm (currently only ECC-P384 is supported)
     ctx.verify_selected_hash_algo()
@@ -150,7 +153,7 @@ async fn fill_digests_response<'a>(
     // Encode the certificate chain digests for each provisioned slot
     for slot_id in 0..slot_cnt {
         payload_len +=
-            encode_cert_chain_digest(slot_id as u8, ctx.device_certs_store, asym_algo, rsp)
+            encode_cert_chain_digest(slot_id as u8, ctx.device_certs_store, asym_algo, rsp, hash_ctx)
                 .await
                 .map_err(|_| ctx.generate_error_response(rsp, ErrorCode::Unspecified, 0, None))?;
     }
@@ -232,6 +235,7 @@ pub(crate) async fn handle_digests<'a>(
     ctx: &mut SpdmContext<'a>,
     spdm_hdr: SpdmMsgHdr,
     req_payload: &mut MessageBuf<'a>,
+    hash_ctx: &mut impl HashContext,
 ) -> CommandResult<()> {
     // Validate the connection state
     if ctx.state.connection_info.state() < ConnectionState::AlgorithmsNegotiated {
@@ -265,7 +269,7 @@ pub(crate) async fn handle_digests<'a>(
     ctx.prepare_response_buffer(req_payload)?;
 
     // Fill the response buffer
-    fill_digests_response(ctx, connection_version, req_payload).await?;
+    fill_digests_response(ctx, connection_version, req_payload, hash_ctx).await?;
 
     // TODO: transcript manager and session support
 

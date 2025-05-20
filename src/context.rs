@@ -13,10 +13,13 @@ use crate::protocol::common::{ReqRespCode, SpdmMsgHdr};
 use crate::protocol::version::*;
 use crate::protocol::DeviceCapabilities;
 use crate::state::State;
+use crate::transport;
 use crate::transport::SpdmTransport;
+use crate::crypto::hash::SpdmHash as Hash;
+use crate::crypto::crypto::SpdmCrypto as Crypto;
 
-pub struct SpdmContext<'a> {
-    transport: &'a mut dyn SpdmTransport,
+pub struct SpdmContext<'a, Crypto, Hash> {
+    transport: &'a mut dyn SpdmTransport<Error = transport::ErrorKind>,
     pub(crate) supported_versions: &'a [SpdmVersion],
     pub(crate) state: State,
     pub(crate) local_capabilities: DeviceCapabilities,
@@ -24,10 +27,10 @@ pub struct SpdmContext<'a> {
     pub(crate) device_certs_store: &'a mut dyn SpdmCertStore,
 }
 
-impl<'a> SpdmContext<'a> {
+impl<'a> SpdmContext<'a, Crypto, Hash> { 
     pub fn new(
         supported_versions: &'a [SpdmVersion],
-        spdm_transport: &'a mut dyn SpdmTransport,
+        spdm_transport: &'a mut dyn SpdmTransport<Error = transport::ErrorKind>,
         local_capabilities: DeviceCapabilities,
         local_algorithms: LocalDeviceAlgorithms<'a>,
         device_certs_store: &'a mut dyn SpdmCertStore,

@@ -23,3 +23,7 @@ pub mod transport;
 
 // Device certificate management
 pub mod cert_store;
+
+// External interfaces
+pub mod crypto;
+

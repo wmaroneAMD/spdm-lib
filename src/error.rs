@@ -4,21 +4,20 @@
 use crate::cert_store::CertStoreError;
 use crate::codec::CodecError;
 use crate::commands::error_rsp::ErrorCode;
-use crate::transport::TransportError;
 
 use spdmlib_support::error::*;
+use spdmlib_support::hash::*;
 
 #[derive(Debug)]
 pub enum SpdmError {
     UnsupportedVersion,
     InvalidParam,
-    Codec(CodecError),
-    Transport(TransportError),
-    Command(CommandError),
+    Codec,
+    Transport,
+    Command,
     BufferTooSmall,
     UnsupportedRequest,
-    CertStore(CertStoreError),
-    Error(ApiError),
+    CertStore,
 }
 
 pub type SpdmResult<T> = Result<T, SpdmError>;
@@ -33,4 +32,5 @@ pub enum CommandError {
     UnsupportedRequest,
     CertStore(CertStoreError),
     Api(ApiError),
+    Hash(HashError),
 }
